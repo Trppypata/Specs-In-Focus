@@ -18,21 +18,149 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Virtual try-on app for eyewear with lifelike accuracy.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#FF0000">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="specs_in_focus">
+  <meta name="apple-mobile-web-app-title" content="Specs In Focus">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>specs_in_focus</title>
+  <title>Specs In Focus - Virtual Eyewear Try-On</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    body {
+      background-color: #f5f5f5;
+      margin: 0;
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+    }
+    
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      width: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      background-color: #ffffff;
+      flex-direction: column;
+    }
+    
+    .loading img {
+      width: 150px;
+      height: auto;
+      margin-bottom: 20px;
+    }
+    
+    .loading-text {
+      font-family: Arial, sans-serif;
+      font-size: 18px;
+      color: #333;
+      margin-top: 20px;
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 0, 0, 0.3);
+      border-radius: 50%;
+      border-top: 4px solid #ff0000;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <div class="loading" id="loading">
+    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+      <div style="background-color: black; padding: 5px 10px; border-radius: 8px; margin-right: 5px;">
+        <span style="color: white; font-family: Arial; font-weight: bold; font-size: 28px;">specs</span>
+      </div>
+      <span style="color: red; font-family: Arial; font-weight: bold; font-size: 28px; margin: 0 5px;">in</span>
+      <div style="background-color: #e0e0e0; padding: 5px 10px; border-radius: 8px; margin-left: 5px;">
+        <span style="color: black; font-family: Arial; font-weight: bold; font-size: 28px;">focus</span>
+      </div>
+    </div>
+    <div class="spinner"></div>
+    <p class="loading-text">Loading virtual try-on experience...</p>
+  </div>
+
+  <!-- This script installs service_worker.js to provide PWA functionality to
+       application. For more information, see:
+       https://developers.google.com/web/fundamentals/primers/service-workers -->
+  <script>
+    var scriptLoaded = false;
+    
+    function loadMainDartJs() {
+      if (scriptLoaded) {
+        return;
+      }
+      scriptLoaded = true;
+      var scriptTag = document.createElement('script');
+      scriptTag.src = 'main.dart.js';
+      scriptTag.type = 'application/javascript';
+      document.body.append(scriptTag);
+    }
+
+    if ('serviceWorker' in navigator) {
+      // Service workers are supported. Use them.
+      window.addEventListener('load', function () {
+        // Wait for registration to finish before dropping the <script> tag.
+        // Otherwise, the browser will load the script multiple times,
+        // potentially different versions.
+        var serviceWorkerUrl = 'flutter_service_worker.js?v=' + '{{flutter_service_worker_version}}';
+        navigator.serviceWorker.register(serviceWorkerUrl)
+          .then((reg) => {
+            function waitForActivation(serviceWorker) {
+              serviceWorker.addEventListener('statechange', () => {
+                if (serviceWorker.state == 'activated') {
+                  console.log('Installed new service worker.');
+                  loadMainDartJs();
+                }
+              });
+            }
+            if (!reg.active && (reg.installing || reg.waiting)) {
+              // No active web worker and we have installed or are installing
+              // one for the first time. Simply wait for it to activate.
+              waitForActivation(reg.installing || reg.waiting);
+            } else {
+              // When the service worker is active, continue with loading the app
+              loadMainDartJs();
+            }
+          });
+
+        // If service worker doesn't succeed in a reasonable amount of time,
+        // fallback to plain <script> tag.
+        setTimeout(() => {
+          if (!scriptLoaded) {
+            console.warn(
+              'Failed to load app from service worker. Falling back to plain <script> tag.',
+            );
+            loadMainDartJs();
+          }
+        }, 4000);
+      });
+    } else {
+      // Service workers not supported. Just drop the <script> tag.
+      loadMainDartJs();
+    }
+  </script>
 </body>
 </html>

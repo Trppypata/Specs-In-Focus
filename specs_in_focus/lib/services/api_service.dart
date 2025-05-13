@@ -1,15 +1,20 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:specs_in_focus/models/glasses_model.dart';
+import 'package:specs_in_focus/config/env_config.dart';
 
 class ApiService {
-  // Base URL for API
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
+  // Environment configuration
+  final EnvConfig _config = EnvConfig();
+  
+  // Get base URL from environment config
+  String get baseUrl => _config.apiBaseUrl;
 
   // Headers
-  static Future<Map<String, String>> _getHeaders() async {
+  Future<Map<String, String>> _getHeaders() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('token');
+    String? token = prefs.getString(_config.authTokenKey);
 
     if (token != null) {
       return {
@@ -24,80 +29,182 @@ class ApiService {
   }
 
   // Register user
-  static Future<Map<String, dynamic>> register({
+  Future<Map<String, dynamic>> register({
     required String username,
     required String email,
     required String password,
     String? fullName,
     String? phone,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/register'),
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'username': username,
-        'email': email,
-        'password': password,
-        'fullName': fullName,
-        'phone': phone,
-      }),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/register'),
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'username': username,
+          'email': email,
+          'password': password,
+          'fullName': fullName,
+          'phone': phone,
+        }),
+      );
 
-    return jsonDecode(response.body);
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('Registration error: $e');
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+      };
+    }
   }
 
   // Login user
-  static Future<Map<String, dynamic>> login({
+  Future<Map<String, dynamic>> login({
     required String email,
     required String password,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/login'),
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-      }),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/login'),
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+        }),
+      );
 
-    final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body);
 
-    // Save token if login successful
-    if (response.statusCode == 200 && data['success'] == true) {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      prefs.setString('token', data['data']['token']);
-      prefs.setString('userId', data['data']['id']);
+      // Save token if login successful
+      if (response.statusCode == 200 && data['success'] == true) {
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.setString(_config.authTokenKey, data['token']);
+        prefs.setString(_config.userIdKey, data['userId']);
+      }
+
+      return data;
+    } catch (e) {
+      print('Login error: $e');
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+      };
     }
-
-    return data;
   }
 
   // Get current user
-  static Future<Map<String, dynamic>> getCurrentUser() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/auth/me'),
-      headers: await _getHeaders(),
-    );
+  Future<Map<String, dynamic>> getCurrentUser() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/me'),
+        headers: await _getHeaders(),
+      );
 
-    return jsonDecode(response.body);
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('Get user error: $e');
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+      };
+    }
   }
 
   // Update user
-  static Future<Map<String, dynamic>> updateUser(
+  Future<Map<String, dynamic>> updateUser(
       String userId, Map<String, dynamic> userData) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/users/$userId'),
-      headers: await _getHeaders(),
-      body: jsonEncode(userData),
-    );
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/users/$userId'),
+        headers: await _getHeaders(),
+        body: jsonEncode(userData),
+      );
 
-    return jsonDecode(response.body);
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('Update user error: $e');
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+      };
+    }
   }
 
   // Logout user
-  static Future<void> logout() async {
+  Future<void> logout() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.remove('token');
-    prefs.remove('userId');
+    prefs.remove(_config.authTokenKey);
+    prefs.remove(_config.userIdKey);
+  }
+
+  // Get all glasses
+  Future<List<Glasses>> getAllGlasses() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/glasses'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        return data.map((json) => Glasses.fromJson(json)).toList();
+      } else {
+        print('Failed to load glasses: ${response.statusCode}');
+        // Return local data as fallback if API fails
+        return GlassesRepository.getAllGlasses();
+      }
+    } catch (e) {
+      print('Error fetching glasses: $e');
+      // Return local data as fallback
+      return GlassesRepository.getAllGlasses();
+    }
+  }
+
+  // Get glasses by face shape
+  Future<List<Glasses>> getGlassesByFaceShape(String faceShape) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/glasses/face-shape/$faceShape'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        return data.map((json) => Glasses.fromJson(json)).toList();
+      } else {
+        print('Failed to load glasses by face shape: ${response.statusCode}');
+        // Filter local data as fallback
+        return GlassesRepository.getAllGlasses()
+            .where((glasses) => 
+                glasses.faceShapeRecommendations?.contains(faceShape.toLowerCase()) ?? false)
+            .toList();
+      }
+    } catch (e) {
+      print('Error fetching glasses by face shape: $e');
+      // Filter local data as fallback
+      return GlassesRepository.getAllGlasses()
+          .where((glasses) => 
+              glasses.faceShapeRecommendations?.contains(faceShape.toLowerCase()) ?? false)
+          .toList();
+    }
+  }
+
+  // Seed sample data
+  Future<bool> seedSampleData() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/seed'));
+
+      if (response.statusCode == 200) {
+        print('Sample data seeded successfully');
+        return true;
+      } else {
+        print('Failed to seed sample data: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('Error seeding sample data: $e');
+      return false;
+    }
   }
 }

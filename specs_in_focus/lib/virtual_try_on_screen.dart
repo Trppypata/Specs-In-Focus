@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:specs_in_focus/models/glasses_model.dart';
+import 'package:specs_in_focus/chatbot_screen.dart';
 
 class VirtualTryOnScreen extends StatefulWidget {
   final Glasses? selectedGlasses;
@@ -13,12 +14,29 @@ class VirtualTryOnScreen extends StatefulWidget {
 class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
   List<Glasses> availableGlasses = GlassesRepository.getAllGlasses();
   Glasses? currentGlasses;
-  bool isFrontCamera = true;
+  String _currentModelImage = "assets/images/style1.jpg";
 
   @override
   void initState() {
     super.initState();
     currentGlasses = widget.selectedGlasses ?? availableGlasses.first;
+  }
+
+  // List of model faces to try glasses on
+  final List<String> _modelFaces = [
+    "assets/images/style1.jpg",
+    "assets/images/style3.jpg",
+    "assets/images/style7.jpg",
+    "assets/images/style9.jpg",
+  ];
+
+  // Change the model face
+  void _changeModelFace() {
+    final currentIndex = _modelFaces.indexOf(_currentModelImage);
+    final nextIndex = (currentIndex + 1) % _modelFaces.length;
+    setState(() {
+      _currentModelImage = _modelFaces[nextIndex];
+    });
   }
 
   @override
@@ -103,15 +121,15 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // Sample face image (placeholder for camera)
+                // Sample face image
                 Image.asset(
-                  'assets/images/style1.jpg', // Use a model image as placeholder
+                  _currentModelImage,
                   fit: BoxFit.cover,
                 ),
 
-                // Glasses overlay - positioned to appear on face
+                // Glasses overlay
                 Align(
-                  alignment: Alignment(0, -0.2), // Position glasses on the face
+                  alignment: const Alignment(0, -0.2),
                   child: Image.asset(
                     currentGlasses!.imageAssets.first,
                     width: MediaQuery.of(context).size.width * 0.7,
@@ -125,20 +143,15 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
                   right: 16,
                   child: Column(
                     children: [
-                      // Camera switch button
+                      // Model switch button
                       Container(
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.6),
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.flip_camera_ios,
-                              color: Colors.white),
-                          onPressed: () {
-                            setState(() {
-                              isFrontCamera = !isFrontCamera;
-                            });
-                          },
+                          icon: const Icon(Icons.face, color: Colors.white),
+                          onPressed: _changeModelFace,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -155,7 +168,9 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
                             // Simulate taking a picture
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                  content: Text('Picture captured!')),
+                                content: Text('Picture captured!'),
+                                duration: Duration(seconds: 2),
+                              ),
                             );
                           },
                         ),
@@ -250,22 +265,55 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: ElevatedButton(
-              onPressed: () {
-                // Handle purchase action
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Added to cart!')),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // Handle purchase action
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Added to cart!')),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Add to Cart'),
+                  ),
                 ),
-              ),
-              child: const Text('Add to Cart'),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const ChatbotScreen()),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade800,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 16, horizontal: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.smart_toy, size: 18),
+                      SizedBox(width: 6),
+                      Text('Get Recommendations'),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
