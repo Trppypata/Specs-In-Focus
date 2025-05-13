@@ -50,6 +50,8 @@ class _SignupScreenState extends State<SignupScreen> {
         phone: _phoneController.text.trim(),
       );
 
+      print('Signup screen received response: $response');
+
       if (response['success'] == true) {
         // Navigate to login screen on successful registration
         if (!mounted) return;
@@ -67,14 +69,17 @@ class _SignupScreenState extends State<SignupScreen> {
         );
       } else {
         setState(() {
-          _errorMessage =
+          // Try to get the message from the response
+          final message =
               response['message'] ?? 'Registration failed. Please try again.';
+          _errorMessage = message;
         });
       }
     } catch (e) {
       setState(() {
         _errorMessage = 'An error occurred: $e';
       });
+      print('Error in registration: $e');
     } finally {
       setState(() {
         _isLoading = false;

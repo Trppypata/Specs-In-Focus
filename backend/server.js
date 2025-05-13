@@ -10,8 +10,18 @@ dotenv.config();
 // Create Express app
 const app = express();
 
-// Middleware
-app.use(cors());
+// Configure CORS with more permissive settings for development
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:5001', 'http://localhost', 'http://127.0.0.1', 'chrome-extension://*'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
+
+// Enable preflight for all routes
+app.options('*', cors());
+
 app.use(express.json());
 
 // Root route

@@ -13,11 +13,13 @@ const generateToken = (id) => {
 // @access  Public
 exports.register = async (req, res) => {
   try {
+    console.log('Registration request received:', req.body);
     const { username, email, password, fullName, phone } = req.body;
 
     // Check if user already exists
     const userExists = await User.findOne({ where: { email } });
     if (userExists) {
+      console.log('User already exists:', email);
       return res.status(400).json({
         success: false,
         message: 'User with this email already exists'
@@ -34,6 +36,9 @@ exports.register = async (req, res) => {
     });
 
     if (user) {
+      console.log('User created successfully:', user.id);
+      const token = generateToken(user.id);
+      
       res.status(201).json({
         success: true,
         data: {
@@ -43,17 +48,18 @@ exports.register = async (req, res) => {
           fullName: user.fullName,
           phone: user.phone,
           role: user.role,
-          token: generateToken(user.id)
+          token: token
         }
       });
     } else {
+      console.log('Invalid user data');
       res.status(400).json({
         success: false,
         message: 'Invalid user data'
       });
     }
   } catch (error) {
-    console.error(error);
+    console.error('Registration error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -67,12 +73,14 @@ exports.register = async (req, res) => {
 // @access  Public
 exports.login = async (req, res) => {
   try {
+    console.log('Login request received:', req.body);
     const { email, password } = req.body;
 
     // Check for user
     const user = await User.findOne({ where: { email } });
 
     if (!user) {
+      console.log('User not found:', email);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -83,12 +91,16 @@ exports.login = async (req, res) => {
     const isMatch = await user.checkPassword(password);
 
     if (!isMatch) {
+      console.log('Password mismatch for:', email);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
       });
     }
 
+    console.log('User logged in successfully:', user.id);
+    const token = generateToken(user.id);
+    
     res.status(200).json({
       success: true,
       data: {
@@ -98,11 +110,11 @@ exports.login = async (req, res) => {
         fullName: user.fullName,
         phone: user.phone,
         role: user.role,
-        token: generateToken(user.id)
+        token: token
       }
     });
   } catch (error) {
-    console.error(error);
+    console.error('Login error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',

@@ -5,7 +5,7 @@ const sequelize = new Sequelize('postgres', 'postgres', 'admin123', {
   host: 'localhost',
   port: 5432,
   dialect: 'postgres',
-  logging: false,
+  logging: console.log, // Enable logging to debug connection issues
   pool: {
     max: 5,
     min: 0,
@@ -13,8 +13,8 @@ const sequelize = new Sequelize('postgres', 'postgres', 'admin123', {
     idle: 10000
   },
   retry: {
-    max: 3, // maximum retry 3 times
-    timeout: 30000 // retry for 30 seconds
+    max: 5, // maximum retry 5 times
+    timeout: 60000 // retry for 60 seconds
   }
 });
 
@@ -22,10 +22,10 @@ const sequelize = new Sequelize('postgres', 'postgres', 'admin123', {
 const testConnection = async () => {
   try {
     await sequelize.authenticate();
-    console.log('Database connection has been established successfully.');
+    console.log('✅ Database connection has been established successfully.');
     return true;
   } catch (error) {
-    console.error('Unable to connect to the database:', error.message);
+    console.error('❌ Unable to connect to the database:', error.message);
     
     if (error.original) {
       console.error('Original error:', error.original.message);

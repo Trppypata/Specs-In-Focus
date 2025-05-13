@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:io'
+    if (dart.library.html) 'package:specs_in_focus/config/web_platform_stub.dart';
 import 'package:flutter/foundation.dart';
 
 /// Environment Configuration for the app
@@ -17,12 +18,14 @@ class EnvConfig {
   String get apiBaseUrl {
     if (kDebugMode) {
       // Debug mode (development)
-      if (Platform.isAndroid) {
+      if (kIsWeb) {
+        return 'http://localhost:5000/api'; // Web
+      } else if (Platform.isAndroid) {
         return 'http://10.0.2.2:5000/api'; // Android emulator
       } else if (Platform.isIOS) {
         return 'http://localhost:5000/api'; // iOS simulator
       } else {
-        return 'http://localhost:5000/api'; // Web or desktop
+        return 'http://localhost:5000/api'; // Desktop
       }
     } else {
       // Release mode (production)

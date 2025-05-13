@@ -2,10 +2,7 @@ const { sequelize, testConnection } = require('../config/db');
 const User = require('./User');
 const Glasses = require('./Glasses');
 
-// Define associations - fix the problem by using the correct model reference
-// Remove or correct the problematic association
-// User.hasMany(sequelize.models.Glasses, { as: 'favoriteGlasses' });
-// Replace with:
+// Define associations
 User.hasMany(Glasses, { as: 'favoriteGlasses' });
 
 // Initialize models
@@ -19,35 +16,37 @@ const initModels = async () => {
       return false;
     }
     
-    // Create database if it doesn't exist
-    try {
-      await sequelize.query('CREATE DATABASE IF NOT EXISTS specs_in_focus_db');
-      console.log('Database specs_in_focus_db created or already exists');
-    } catch (err) {
-      console.log('Note: Could not create database, might already exist');
-    }
+    console.log('Attempting to sync models with database...');
     
-    // Sync all models with database - use force: true once to rebuild the tables
+    // Set force to false to preserve existing data
+    // Only use force: true during initial setup or when you want to reset all data
     try {
-      await sequelize.sync({ force: true });
-      console.log('Database & tables synced');
+      // Use alter: true instead of force: true to preserve data when possible
+      await sequelize.sync({ alter: true });
+      console.log('✅ Database & tables synced successfully');
+      
+      // Optional: check if we have any users to confirm tables exist
+      const userCount = await User.count();
+      console.log(`Current user count in database: ${userCount}`);
+      
       return true;
     } catch (syncError) {
-      console.error('Error during sync:', syncError);
+      console.error('❌ Error during sync:', syncError);
+      
       // Try alternative approach if sync fails
       try {
         console.log('Attempting alternative sync approach...');
-        await User.sync({ force: true });
-        await Glasses.sync({ force: true });
-        console.log('Tables synced individually');
+        await User.sync({ alter: true });
+        await Glasses.sync({ alter: true });
+        console.log('✅ Tables synced individually');
         return true;
       } catch (altError) {
-        console.error('Alternative sync also failed:', altError);
+        console.error('❌ Alternative sync also failed:', altError);
         return false;
       }
     }
   } catch (error) {
-    console.error('Error syncing database:', error);
+    console.error('❌ Error syncing database:', error);
     return false;
   }
 };

@@ -35,6 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
 
+      print('Login screen received response: $response');
+
       if (response['success'] == true) {
         // Navigate to home screen on successful login
         if (!mounted) return;
@@ -44,14 +46,17 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } else {
         setState(() {
-          _errorMessage =
+          // Try to get the message from the response
+          final message =
               response['message'] ?? 'Login failed. Please try again.';
+          _errorMessage = message;
         });
       }
     } catch (e) {
       setState(() {
         _errorMessage = 'An error occurred: $e';
       });
+      print('Error in login: $e');
     } finally {
       setState(() {
         _isLoading = false;

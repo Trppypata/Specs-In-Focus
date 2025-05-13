@@ -7,7 +7,7 @@ import 'package:specs_in_focus/config/env_config.dart';
 class ApiService {
   // Environment configuration
   final EnvConfig _config = EnvConfig();
-  
+
   // Get base URL from environment config
   String get baseUrl => _config.apiBaseUrl;
 
@@ -37,24 +37,40 @@ class ApiService {
     String? phone,
   }) async {
     try {
+      final requestBody = {
+        'username': username,
+        'email': email,
+        'password': password,
+        'fullName': fullName,
+        'phone': phone,
+      };
+
+      print('Sending registration request to: $baseUrl/auth/register');
+      print('Request body: ${jsonEncode(requestBody)}');
+
       final response = await http.post(
         Uri.parse('$baseUrl/auth/register'),
         headers: await _getHeaders(),
-        body: jsonEncode({
-          'username': username,
-          'email': email,
-          'password': password,
-          'fullName': fullName,
-          'phone': phone,
-        }),
+        body: jsonEncode(requestBody),
       );
 
-      return jsonDecode(response.body);
+      print('Registration response status code: ${response.statusCode}');
+      print('Registration response body: ${response.body}');
+
+      final responseData = jsonDecode(response.body);
+      return responseData;
     } catch (e) {
       print('Registration error: $e');
+      // Provide more detailed error info to help debugging
+      String errorDetails = e.toString();
+      if (e is http.ClientException) {
+        errorDetails =
+            'Network error: ${e.message}. This might be due to CORS or server connectivity issues.';
+      }
+
       return {
         'success': false,
-        'message': 'Connection error: $e',
+        'message': 'Connection error: $errorDetails',
       };
     }
   }
@@ -65,30 +81,50 @@ class ApiService {
     required String password,
   }) async {
     try {
+      final requestBody = {
+        'email': email,
+        'password': password,
+      };
+
+      print('Sending login request to: $baseUrl/auth/login');
+      print('Request body: ${jsonEncode(requestBody)}');
+
       final response = await http.post(
         Uri.parse('$baseUrl/auth/login'),
         headers: await _getHeaders(),
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
+        body: jsonEncode(requestBody),
       );
 
-      final data = jsonDecode(response.body);
+      print('Login response status code: ${response.statusCode}');
+      print('Login response body: ${response.body}');
+
+      final responseData = jsonDecode(response.body);
 
       // Save token if login successful
-      if (response.statusCode == 200 && data['success'] == true) {
+      if (response.statusCode == 200 && responseData['success'] == true) {
         SharedPreferences prefs = await SharedPreferences.getInstance();
-        prefs.setString(_config.authTokenKey, data['token']);
-        prefs.setString(_config.userIdKey, data['userId']);
+        // Access token and id from the nested data object
+        final userData = responseData['data'];
+        if (userData != null) {
+          print('User data: $userData'); // Debug print
+          prefs.setString(_config.authTokenKey, userData['token']);
+          prefs.setString(_config.userIdKey, userData['id']);
+        }
       }
 
-      return data;
+      return responseData;
     } catch (e) {
       print('Login error: $e');
+      // Provide more detailed error info to help debugging
+      String errorDetails = e.toString();
+      if (e is http.ClientException) {
+        errorDetails =
+            'Network error: ${e.message}. This might be due to CORS or server connectivity issues.';
+      }
+
       return {
         'success': false,
-        'message': 'Connection error: $e',
+        'message': 'Connection error: $errorDetails',
       };
     }
   }
@@ -176,16 +212,20 @@ class ApiService {
         print('Failed to load glasses by face shape: ${response.statusCode}');
         // Filter local data as fallback
         return GlassesRepository.getAllGlasses()
-            .where((glasses) => 
-                glasses.faceShapeRecommendations?.contains(faceShape.toLowerCase()) ?? false)
+            .where((glasses) =>
+                glasses.faceShapeRecommendations
+                    ?.contains(faceShape.toLowerCase()) ??
+                false)
             .toList();
       }
     } catch (e) {
       print('Error fetching glasses by face shape: $e');
       // Filter local data as fallback
       return GlassesRepository.getAllGlasses()
-          .where((glasses) => 
-              glasses.faceShapeRecommendations?.contains(faceShape.toLowerCase()) ?? false)
+          .where((glasses) =>
+              glasses.faceShapeRecommendations
+                  ?.contains(faceShape.toLowerCase()) ??
+              false)
           .toList();
     }
   }
