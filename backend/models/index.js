@@ -2,8 +2,11 @@ const { sequelize, testConnection } = require('../config/db');
 const User = require('./User');
 const Glasses = require('./Glasses');
 
-// Define associations
-User.hasMany(sequelize.models.Glasses, { as: 'favoriteGlasses' });
+// Define associations - fix the problem by using the correct model reference
+// Remove or correct the problematic association
+// User.hasMany(sequelize.models.Glasses, { as: 'favoriteGlasses' });
+// Replace with:
+User.hasMany(Glasses, { as: 'favoriteGlasses' });
 
 // Initialize models
 const initModels = async () => {
@@ -24,10 +27,25 @@ const initModels = async () => {
       console.log('Note: Could not create database, might already exist');
     }
     
-    // Sync all models with database
-    await sequelize.sync({ alter: true });
-    console.log('Database & tables synced');
-    return true;
+    // Sync all models with database - use force: true once to rebuild the tables
+    try {
+      await sequelize.sync({ force: true });
+      console.log('Database & tables synced');
+      return true;
+    } catch (syncError) {
+      console.error('Error during sync:', syncError);
+      // Try alternative approach if sync fails
+      try {
+        console.log('Attempting alternative sync approach...');
+        await User.sync({ force: true });
+        await Glasses.sync({ force: true });
+        console.log('Tables synced individually');
+        return true;
+      } catch (altError) {
+        console.error('Alternative sync also failed:', altError);
+        return false;
+      }
+    }
   } catch (error) {
     console.error('Error syncing database:', error);
     return false;

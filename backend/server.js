@@ -29,7 +29,7 @@ const testDirectConnection = async () => {
   const client = new Client({
     user: 'postgres',
     host: 'localhost',
-    database: 'specs_in_focus_db',
+    database: 'postgres',  // Always connect to postgres DB first
     password: 'admin123',  // Try lowercase
     port: 5432,
   });
@@ -69,7 +69,7 @@ const startServer = async () => {
   try {
     // Try direct connection first
     console.log('Attempting direct database connection...');
-    await testDirectConnection();
+    const dbConnected = await testDirectConnection();
     
     // Dynamic imports with error handling
     let models, authRoutes, userRoutes, glassesRoutes, chatbotRoutes;
@@ -78,15 +78,18 @@ const startServer = async () => {
       models = require('./models');
     } catch (err) {
       console.error('Error loading models:', err);
-      console.error('Server startup aborted due to model loading failure');
-      return;
+      console.error('Server startup will continue but with limited functionality');
     }
     
-    // Initialize models
-    const dbInitSuccess = await models.initModels();
-    if (!dbInitSuccess) {
-      console.log('Server startup aborted due to database initialization failure');
-      return;
+    // Initialize models if possible
+    let dbInitSuccess = false;
+    if (models && dbConnected) {
+      dbInitSuccess = await models.initModels();
+      if (!dbInitSuccess) {
+        console.log('Database initialization failed, continuing with limited functionality');
+      } else {
+        console.log('Database initialized successfully');
+      }
     }
     
     // Load routes with error handling
@@ -97,14 +100,84 @@ const startServer = async () => {
       chatbotRoutes = require('./routes/chatbot');
       
       // Setup routes
-      app.use('/api/auth', authRoutes);
-      app.use('/api/users', userRoutes);
-      app.use('/api/glasses', glassesRoutes);
-      app.use('/api/chatbot', chatbotRoutes);
+      if (authRoutes) app.use('/api/auth', authRoutes);
+      if (userRoutes) app.use('/api/users', userRoutes);
+      if (glassesRoutes) app.use('/api/glasses', glassesRoutes);
+      if (chatbotRoutes) app.use('/api/chatbot', chatbotRoutes);
+      
+      // Add fallback route for glasses data if database fails
+      if (!dbInitSuccess) {
+        app.get('/api/glasses', (req, res) => {
+          const sampleGlasses = [
+            {
+              id: '1',
+              name: 'Eleanor',
+              description: 'Round frames perfect for vintage lovers.',
+              price: 129.99,
+              imageUrls: ['assets/images/eleanor1.png', 'assets/images/eleanor2.png'],
+              faceShapeRecommendations: ['oval', 'square'],
+              frameStyle: 'Round',
+              frameColor: 'Tortoise'
+            },
+            {
+              id: '2',
+              name: 'Walker',
+              description: 'Bold rectangular frames for a strong look.',
+              price: 149.99,
+              imageUrls: ['assets/images/walker1.png', 'assets/images/walker2.png'],
+              faceShapeRecommendations: ['round', 'oval'],
+              frameStyle: 'Rectangle',
+              frameColor: 'Black'
+            },
+            {
+              id: '3',
+              name: 'Daria',
+              description: 'Lightweight black frame for all occasions.',
+              price: 119.99,
+              imageUrls: ['assets/images/daria1.png', 'assets/images/daria2.png'],
+              faceShapeRecommendations: ['heart', 'diamond'],
+              frameStyle: 'Cat Eye',
+              frameColor: 'Black'
+            },
+            {
+              id: '4',
+              name: 'Andy',
+              description: 'Modern blue frame with polarized lenses.',
+              price: 159.99,
+              imageUrls: ['assets/images/andy1.png', 'assets/images/andy2.png'],
+              faceShapeRecommendations: ['round', 'heart'],
+              frameStyle: 'Rectangle',
+              frameColor: 'Blue'
+            },
+            {
+              id: '5',
+              name: 'Astrid',
+              description: 'Classic black frames for any occasion.',
+              price: 139.99,
+              imageUrls: ['assets/images/astrid1.png', 'assets/images/astrid2.png'],
+              faceShapeRecommendations: ['round', 'diamond'],
+              frameStyle: 'Square',
+              frameColor: 'Black'
+            }
+          ];
+          
+          return res.status(200).json({ 
+            success: true, 
+            message: 'Using fallback data due to database issues',
+            data: sampleGlasses 
+          });
+        });
+      }
       
       // Add sample data route for initial setup
       app.get('/api/seed', async (req, res) => {
         try {
+          if (!models || !dbInitSuccess) {
+            return res.status(500).json({ 
+              message: 'Cannot seed data - database connection not available' 
+            });
+          }
+          
           // Create sample glasses data if none exists
           const count = await models.Glasses.count();
           
