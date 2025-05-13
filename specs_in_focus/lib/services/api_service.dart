@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:specs_in_focus/models/glasses_model.dart';
 import 'package:specs_in_focus/config/env_config.dart';
+import 'package:specs_in_focus/config/web_platform_stub.dart'
+    if (dart.library.io) 'package:specs_in_focus/config/io_platform_stub.dart';
 
 class ApiService {
   // Environment configuration
@@ -48,11 +51,24 @@ class ApiService {
       print('Sending registration request to: $baseUrl/auth/register');
       print('Request body: ${jsonEncode(requestBody)}');
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/register'),
-        headers: await _getHeaders(),
-        body: jsonEncode(requestBody),
-      );
+      http.Response response;
+
+      // Use the appropriate HTTP client based on platform
+      if (kIsWeb) {
+        // Use the web-specific HTTP client on web platforms
+        response = await WebHttpClient.post(
+          '$baseUrl/auth/register',
+          headers: await _getHeaders(),
+          body: jsonEncode(requestBody),
+        );
+      } else {
+        // Use the standard HTTP client on non-web platforms
+        response = await http.post(
+          Uri.parse('$baseUrl/auth/register'),
+          headers: await _getHeaders(),
+          body: jsonEncode(requestBody),
+        );
+      }
 
       print('Registration response status code: ${response.statusCode}');
       print('Registration response body: ${response.body}');
@@ -89,11 +105,24 @@ class ApiService {
       print('Sending login request to: $baseUrl/auth/login');
       print('Request body: ${jsonEncode(requestBody)}');
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/login'),
-        headers: await _getHeaders(),
-        body: jsonEncode(requestBody),
-      );
+      http.Response response;
+
+      // Use the appropriate HTTP client based on platform
+      if (kIsWeb) {
+        // Use the web-specific HTTP client on web platforms
+        response = await WebHttpClient.post(
+          '$baseUrl/auth/login',
+          headers: await _getHeaders(),
+          body: jsonEncode(requestBody),
+        );
+      } else {
+        // Use the standard HTTP client on non-web platforms
+        response = await http.post(
+          Uri.parse('$baseUrl/auth/login'),
+          headers: await _getHeaders(),
+          body: jsonEncode(requestBody),
+        );
+      }
 
       print('Login response status code: ${response.statusCode}');
       print('Login response body: ${response.body}');

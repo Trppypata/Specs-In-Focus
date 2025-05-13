@@ -316,105 +316,113 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 20),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                  ),
-                  itemCount: glasses.length,
-                  itemBuilder: (context, index) {
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => GlassesDetailPage(
-                              glasses: glasses[index],
-                              tag: 'glassImage_${glasses[index].id}',
+
+            // Replace Expanded with a Container that has a fixed height
+            Container(
+              height: MediaQuery.of(context).size.height *
+                  0.6, // Adjust this value as needed
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: GridView.builder(
+                physics:
+                    NeverScrollableScrollPhysics(), // Disable scrolling within the GridView
+                shrinkWrap: true, // Important for GridView inside ScrollView
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.75,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                ),
+                itemCount: glasses.length,
+                itemBuilder: (context, index) {
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GlassesDetailPage(
+                            glasses: glasses[index],
+                            tag: 'glassImage_${glasses[index].id}',
+                          ),
+                        ),
+                      );
+                    },
+                    child: Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(12),
+                              ),
+                              child: Hero(
+                                tag: 'glassImage_${glasses[index].id}',
+                                child: Image.asset(
+                                  glasses[index].imageAssets.first,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                ),
+                              ),
                             ),
                           ),
-                        );
-                      },
-                      child: Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(12),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  glasses[index].name,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                child: Hero(
-                                  tag: 'glassImage_${glasses[index].id}',
-                                  child: Image.asset(
-                                    glasses[index].imageAssets.first,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
+                                SizedBox(height: 4),
+                                Text(
+                                  '\$${glasses[index].price.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    color: Colors.redAccent,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    glasses[index].name,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    '\$${glasses[index].price.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      color: Colors.redAccent,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  SizedBox(height: 4),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Try On',
-                                        style: TextStyle(
-                                          color: Colors.blue,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      Icon(
-                                        Icons.camera_alt,
-                                        size: 18,
+                                SizedBox(height: 4),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Try On',
+                                      style: TextStyle(
                                         color: Colors.blue,
+                                        fontWeight: FontWeight.w500,
                                       ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                                    ),
+                                    Icon(
+                                      Icons.camera_alt,
+                                      size: 18,
+                                      color: Colors.blue,
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
             ),
+
+            // Add some bottom padding
+            const SizedBox(height: 20),
           ],
         ),
       ),
