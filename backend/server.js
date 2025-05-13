@@ -248,18 +248,26 @@ const startServer = async () => {
     
     // Start server with port fallback handling
     const startWithPort = (port) => {
-      server.listen(port);
-      console.log(`Server attempting to run on port ${port}`);
+      try {
+        server.listen(port);
+        console.log(`Server attempting to run on port ${port}`);
+      } catch (err) {
+        console.error(`Failed to start server on port ${port}:`, err);
+      }
     };
     
     server.on('error', (error) => {
       if (error.code === 'EADDRINUSE') {
-        const currentPort = server.address()?.port || PORT;
-        const portIndex = ALTERNATIVE_PORTS.indexOf(currentPort);
+        const currentPortStr = error.message.match(/listen EADDRINUSE: address already in use :::(\d+)/)?.[1];
+        const currentPort = currentPortStr ? parseInt(currentPortStr) : PORT;
         
-        if (portIndex < ALTERNATIVE_PORTS.length - 1) {
+        // Check if port is in our list
+        const portIndex = ALTERNATIVE_PORTS.indexOf(currentPort);
+        const nextIndex = portIndex < 0 ? 0 : portIndex + 1;
+        
+        if (nextIndex < ALTERNATIVE_PORTS.length) {
           // Try next port in the list
-          const nextPort = ALTERNATIVE_PORTS[portIndex + 1];
+          const nextPort = ALTERNATIVE_PORTS[nextIndex];
           console.log(`Port ${currentPort} is already in use, trying ${nextPort}...`);
           server.close();
           startWithPort(nextPort);

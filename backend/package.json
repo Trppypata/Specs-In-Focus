@@ -6,6 +6,10 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "restart": "taskkill /F /IM node.exe && npm run dev",
+    "kill-node": "taskkill /F /IM node.exe",
+    "clean-start": "npm run kill-node || true && set PORT=5002 && npm run dev",
+    "db:reset": "node scripts/resetDb.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
