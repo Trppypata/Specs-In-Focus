@@ -1,0 +1,15 @@
+Place your glasses1.glb and glasses2.glb 3D model files in this directory.
+
+These files should be WebGL-compatible GLB format files that represent the 3D models of eyeglasses for the virtual try-on feature.
+
+For best results:
+1. Models should be properly scaled and centered
+2. Models should have realistic materials/textures
+3. Origin point should be positioned at the center between the lenses
+4. Models should be optimized for web and mobile performance (low poly count)
+
+You can obtain GLDB files from sources like:
+- Unity Asset Store
+- Sketchfab
+- Google Poly
+- Your own 3D modeling software (Blender, Maya, etc.) 

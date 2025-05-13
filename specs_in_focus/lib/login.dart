@@ -1,7 +1,7 @@
 import 'package:specs_in_focus/LandingPage.dart';
 import 'package:flutter/material.dart';
 import 'package:specs_in_focus/signup.dart';
-import 'package:specs_in_focus/services/api_service.dart';
+import '../assets/images/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

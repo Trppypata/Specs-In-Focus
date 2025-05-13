@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'LandingPage.dart';
+import 'package:specs_in_focus/virtual_try_on_screen.dart';
 
 void main() {
   runApp(const StylesScreen());
@@ -76,7 +77,10 @@ class StylesPage extends StatelessWidget {
             ),
             IconButton(
               onPressed: () {
-                Navigator.pushNamed(context, '/LandingPage');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => VirtualTryOnScreen()),
+                );
               },
               icon: const Icon(Icons.camera_alt_rounded),
               color: Colors.white,
