@@ -24,7 +24,7 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
   List<CameraDescription>? cameras;
   bool _isCameraInitialized = false;
   bool _isCameraPermissionGranted = false;
-  bool _showModelViewer = false;
+  bool _showImageViewerOnly = false;
 
   // Virtual glasses position
   double _glassesPositionY = 0.3; // Default position from top (0.0 to 1.0)
@@ -108,10 +108,10 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
     }
   }
 
-  // Toggle between camera view and 3D model viewer
-  void _toggleModelViewer() {
+  // Toggle between camera+image view and image only viewer
+  void _toggleImageViewerOnly() {
     setState(() {
-      _showModelViewer = !_showModelViewer;
+      _showImageViewerOnly = !_showImageViewerOnly;
     });
   }
 
@@ -175,10 +175,10 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
         actions: [
           IconButton(
             icon: Icon(
-              _showModelViewer ? Icons.camera_alt : Icons.view_in_ar,
+              _showImageViewerOnly ? Icons.camera_alt : Icons.image,
               color: Colors.black,
             ),
-            onPressed: _toggleModelViewer,
+            onPressed: _toggleImageViewerOnly,
           ),
         ],
       ),
@@ -203,13 +203,13 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
 
           // Virtual try-on preview area
           Expanded(
-            child: _showModelViewer
-                ? _build3DModelViewer()
-                : _buildCameraPreview(),
+            child: _showImageViewerOnly
+                ? _buildImageViewerOnly()
+                : _buildCameraWithGlassesOverlay(),
           ),
 
           // Glasses position and size controls
-          if (!_showModelViewer)
+          if (!_showImageViewerOnly)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
@@ -275,7 +275,8 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: Image.asset(
-                        glasses.imageAssets.first,
+                        glasses.imageAssets
+                            .first, // Use regular image for thumbnail
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -341,8 +342,8 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
     );
   }
 
-  // Build camera preview with virtual glasses overlay
-  Widget _buildCameraPreview() {
+  // Build camera preview with glasses overlay
+  Widget _buildCameraWithGlassesOverlay() {
     if (!_isCameraPermissionGranted) {
       // Show permission request UI
       return Center(
@@ -373,7 +374,7 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
       );
     }
 
-    // Return camera preview with glasses overlay
+    // Return camera preview with glasses overlay image
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -383,15 +384,25 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
           child: CameraPreview(_controller!),
         ),
 
-        // Manually positioned glasses overlay
+        // Glasses overlay with ColorFiltered for transparency
         Center(
           child: Align(
             alignment: Alignment(
                 0, _glassesPositionY * 2 - 1), // Convert from 0-1 to -1 to 1
-            child: Image.asset(
-              currentGlasses!.imageAssets.first,
-              width: MediaQuery.of(context).size.width * _glassesSize,
-              fit: BoxFit.fitWidth,
+            child: ColorFiltered(
+              // Apply a color filter that preserves black frames and makes white parts transparent
+              colorFilter: const ColorFilter.matrix([
+                1, 0, 0, 0, 0,
+                0, 1, 0, 0, 0,
+                0, 0, 1, 0, 0,
+                0, 0, 0, 1,
+                -160, // Adjust the last value to control transparency threshold
+              ]),
+              child: Image.asset(
+                currentGlasses!.imageAssets.first,
+                width: MediaQuery.of(context).size.width * _glassesSize,
+                fit: BoxFit.fitWidth,
+              ),
             ),
           ),
         ),
@@ -406,8 +417,8 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              icon: const Icon(Icons.view_in_ar, color: Colors.white),
-              onPressed: _toggleModelViewer,
+              icon: const Icon(Icons.image, color: Colors.white),
+              onPressed: _toggleImageViewerOnly,
             ),
           ),
         ),
@@ -415,22 +426,29 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
     );
   }
 
-  // Build 3D model viewer for .glb files
-  Widget _build3DModelViewer() {
+  // Build image viewer only for glasses without camera
+  Widget _buildImageViewerOnly() {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey[200],
         borderRadius: BorderRadius.circular(12),
       ),
-      child: ModelViewer(
-        backgroundColor: Colors.transparent,
-        src: currentGlasses?.modelAsset ?? 'assets/models/glasses1.glb',
-        alt: '3D Glasses Model',
-        ar: true,
-        arModes: const ['scene-viewer', 'webxr', 'quick-look'],
-        autoRotate: true,
-        cameraControls: true,
+      child: Center(
+        child: ColorFiltered(
+          // Apply a color filter that preserves black frames and makes white parts transparent
+          colorFilter: const ColorFilter.matrix([
+            1, 0, 0, 0, 0,
+            0, 1, 0, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 0, 1,
+            -160, // Adjust the last value to control transparency threshold
+          ]),
+          child: Image.asset(
+            currentGlasses!.imageAssets.first,
+            fit: BoxFit.contain,
+          ),
+        ),
       ),
     );
   }

@@ -1,0 +1,50 @@
+# Sample Transparent Glasses Images
+
+This file provides instructions on how to get sample transparent PNG images for testing the virtual try-on feature.
+
+## Quick Start Testing Images
+
+Since we can't directly create PNG files through this interface, here are some options to quickly get transparent glasses PNGs:
+
+1. **Use Online Stock Images**:
+   - Visit [StickPNG](https://www.stickpng.com/cat/fashion-accessories/glasses) for free transparent glasses PNGs
+   - Visit [PNGItem](https://www.pngitem.com/so/glasses/) for more options
+
+2. **Create Your Own**:
+   - Take photos of eyeglasses on a white background
+   - Use [remove.bg](https://www.remove.bg/) to automatically remove the background
+   - Save as PNG with transparency
+
+3. **Sample Image URLs** (for quick download):
+   - [Classic Glasses](https://www.pngitem.com/pimgs/m/111-1115250_transparent-glasses-png-png-download.png)
+   - [Sunglasses](https://www.pngitem.com/pimgs/m/115-1152926_prescription-glasses-png-transparent-png.png)
+   - [Round Glasses](https://www.pngitem.com/pimgs/m/146-1460474_round-glasses-png-transparent-png.png)
+   - [Cat Eye Glasses](https://www.pngitem.com/pimgs/m/115-1153489_vision-clipart-spec-frame-cat-eye-glasses-png.png)
+
+## Naming Convention
+
+After downloading, rename the images to match our naming pattern:
+- andy_transparent.png
+- astrid_transparent.png
+- daria_transparent.png
+- eleanor_transparent.png
+- enid_transparent.png
+- greta_transparent.png
+- noah_transparent.png
+- oliver_transparent.png
+
+## Placement
+
+Save these files in the `assets/images/` directory alongside the original eyeglasses images.
+
+## Testing
+
+After adding these transparent PNG files, run the app and test the virtual try-on feature. You should see the glasses overlaid on the camera feed with a transparent background.
+
+## For Production
+
+For a production app, we recommend creating your own high-quality transparent PNGs that:
+1. Have consistent lighting and scale
+2. Are photographed from the same angle (straight-on)
+3. Have clean edges with complete transparency
+4. Are sized appropriately for mobile display 
