@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 /// A stub class that mirrors the WebHttpClient API for non-web platforms

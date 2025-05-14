@@ -1,6 +1,9 @@
+import 'dart:io';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:model_viewer_plus/model_viewer_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:specs_in_focus/models/glasses_model.dart';
-import 'package:specs_in_focus/chatbot_screen.dart';
 
 class VirtualTryOnScreen extends StatefulWidget {
   final Glasses? selectedGlasses;
@@ -11,31 +14,104 @@ class VirtualTryOnScreen extends StatefulWidget {
   _VirtualTryOnScreenState createState() => _VirtualTryOnScreenState();
 }
 
-class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
+class _VirtualTryOnScreenState extends State<VirtualTryOnScreen>
+    with WidgetsBindingObserver {
   List<Glasses> availableGlasses = GlassesRepository.getAllGlasses();
   Glasses? currentGlasses;
-  String _currentModelImage = "assets/images/style1.jpg";
+
+  // Camera-related variables
+  CameraController? _controller;
+  List<CameraDescription>? cameras;
+  bool _isCameraInitialized = false;
+  bool _isCameraPermissionGranted = false;
+  bool _showModelViewer = false;
+
+  // Virtual glasses position
+  double _glassesPositionY = 0.3; // Default position from top (0.0 to 1.0)
+  double _glassesSize = 0.7; // Default size (relative to screen width)
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     currentGlasses = widget.selectedGlasses ?? availableGlasses.first;
+    _getCameraPermission();
   }
 
-  // List of model faces to try glasses on
-  final List<String> _modelFaces = [
-    "assets/images/style1.jpg",
-    "assets/images/style3.jpg",
-    "assets/images/style7.jpg",
-    "assets/images/style9.jpg",
-  ];
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _disposeCamera();
+    super.dispose();
+  }
 
-  // Change the model face
-  void _changeModelFace() {
-    final currentIndex = _modelFaces.indexOf(_currentModelImage);
-    final nextIndex = (currentIndex + 1) % _modelFaces.length;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive) {
+      _disposeCamera();
+    } else if (state == AppLifecycleState.resumed &&
+        _controller != null &&
+        !_controller!.value.isInitialized) {
+      _initializeCamera();
+    }
+  }
+
+  // Request camera permission
+  Future<void> _getCameraPermission() async {
+    final status = await Permission.camera.request();
     setState(() {
-      _currentModelImage = _modelFaces[nextIndex];
+      _isCameraPermissionGranted = status.isGranted;
+    });
+
+    if (_isCameraPermissionGranted) {
+      _initializeCamera();
+    }
+  }
+
+  // Initialize the camera
+  Future<void> _initializeCamera() async {
+    cameras = await availableCameras();
+
+    if (cameras != null && cameras!.isNotEmpty) {
+      // Use front camera for selfie mode
+      final frontCamera = cameras!.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.front,
+        orElse: () => cameras!.first,
+      );
+
+      _controller = CameraController(
+        frontCamera,
+        ResolutionPreset.high,
+        enableAudio: false,
+      );
+
+      await _controller!.initialize();
+
+      if (!mounted) return;
+
+      setState(() {
+        _isCameraInitialized = true;
+      });
+    }
+  }
+
+  // Dispose camera resources
+  void _disposeCamera() {
+    if (_controller != null) {
+      _controller!.dispose();
+      _controller = null;
+      _isCameraInitialized = false;
+    }
+  }
+
+  // Toggle between camera view and 3D model viewer
+  void _toggleModelViewer() {
+    setState(() {
+      _showModelViewer = !_showModelViewer;
     });
   }
 
@@ -96,6 +172,15 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
           ],
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+              _showModelViewer ? Icons.camera_alt : Icons.view_in_ar,
+              color: Colors.black,
+            ),
+            onPressed: _toggleModelViewer,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -118,69 +203,46 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
 
           // Virtual try-on preview area
           Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Sample face image
-                Image.asset(
-                  _currentModelImage,
-                  fit: BoxFit.cover,
-                ),
-
-                // Glasses overlay
-                Align(
-                  alignment: const Alignment(0, -0.2),
-                  child: Image.asset(
-                    currentGlasses!.imageAssets.first,
-                    width: MediaQuery.of(context).size.width * 0.7,
-                    fit: BoxFit.fitWidth,
-                  ),
-                ),
-
-                // Camera controls
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Column(
-                    children: [
-                      // Model switch button
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.face, color: Colors.white),
-                          onPressed: _changeModelFace,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Capture button
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon:
-                              const Icon(Icons.camera_alt, color: Colors.white),
-                          onPressed: () {
-                            // Simulate taking a picture
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Picture captured!'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            child: _showModelViewer
+                ? _build3DModelViewer()
+                : _buildCameraPreview(),
           ),
+
+          // Glasses position and size controls
+          if (!_showModelViewer)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  const Text('Position:'),
+                  Expanded(
+                    child: Slider(
+                      value: _glassesPositionY,
+                      min: 0.1,
+                      max: 0.5,
+                      onChanged: (value) {
+                        setState(() {
+                          _glassesPositionY = value;
+                        });
+                      },
+                    ),
+                  ),
+                  const Text('Size:'),
+                  Expanded(
+                    child: Slider(
+                      value: _glassesSize,
+                      min: 0.3,
+                      max: 1.0,
+                      onChanged: (value) {
+                        setState(() {
+                          _glassesSize = value;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           // Glasses selector
           Container(
@@ -246,77 +308,129 @@ class _VirtualTryOnScreenState extends State<VirtualTryOnScreen> {
                           fontSize: 14,
                           color: Colors.grey,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                Text(
-                  '\$${currentGlasses?.price.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Purchase button
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Handle purchase action
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Added to cart!')),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text('Add to Cart'),
-                  ),
-                ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const ChatbotScreen()),
-                    );
+                    Navigator.of(context).pop();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.shade800,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.blue,
                     padding: const EdgeInsets.symmetric(
-                        vertical: 16, horizontal: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                        horizontal: 24, vertical: 12),
                   ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.smart_toy, size: 18),
-                      SizedBox(width: 6),
-                      Text('Get Recommendations'),
-                    ],
+                  child: const Text(
+                    'Done',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Build camera preview with virtual glasses overlay
+  Widget _buildCameraPreview() {
+    if (!_isCameraPermissionGranted) {
+      // Show permission request UI
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.camera_alt, size: 80, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text(
+              'Camera permission is required',
+              style: TextStyle(fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _getCameraPermission,
+              child: const Text('Grant Permission'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (!_isCameraInitialized) {
+      // Show loading indicator
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    // Return camera preview with glasses overlay
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Camera preview
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: CameraPreview(_controller!),
+        ),
+
+        // Manually positioned glasses overlay
+        Center(
+          child: Align(
+            alignment: Alignment(
+                0, _glassesPositionY * 2 - 1), // Convert from 0-1 to -1 to 1
+            child: Image.asset(
+              currentGlasses!.imageAssets.first,
+              width: MediaQuery.of(context).size.width * _glassesSize,
+              fit: BoxFit.fitWidth,
+            ),
+          ),
+        ),
+
+        // Controls
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.6),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.view_in_ar, color: Colors.white),
+              onPressed: _toggleModelViewer,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Build 3D model viewer for .glb files
+  Widget _build3DModelViewer() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ModelViewer(
+        backgroundColor: Colors.transparent,
+        src: currentGlasses?.modelAsset ?? 'assets/models/glasses1.glb',
+        alt: '3D Glasses Model',
+        ar: true,
+        arModes: const ['scene-viewer', 'webxr', 'quick-look'],
+        autoRotate: true,
+        cameraControls: true,
       ),
     );
   }

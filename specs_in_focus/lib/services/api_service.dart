@@ -4,34 +4,48 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:specs_in_focus/models/glasses_model.dart';
 import 'package:specs_in_focus/config/env_config.dart';
-import 'package:specs_in_focus/config/web_platform_stub.dart'
-    if (dart.library.io) 'package:specs_in_focus/config/io_platform_stub.dart';
+import 'dart:io' if (dart.library.html) 'package:specs_in_focus/config/web_platform_stub.dart';
 
 class ApiService {
   // Environment configuration
   final EnvConfig _config = EnvConfig();
+  
+  // Cache for glasses data
+  List<Glasses>? _cachedGlasses;
+  DateTime? _lastCacheTime;
+  final Duration _cacheExpiration = const Duration(minutes: 10);
 
   // Get base URL from environment config
   String get baseUrl => _config.apiBaseUrl;
 
-  // Headers
+  // Headers with optimized implementation
+  Map<String, String>? _cachedHeaders;
   Future<Map<String, String>> _getHeaders() async {
+    if (_cachedHeaders != null) return _cachedHeaders!;
+    
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString(_config.authTokenKey);
 
     if (token != null) {
-      return {
+      _cachedHeaders = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       };
+    } else {
+      _cachedHeaders = {
+        'Content-Type': 'application/json',
+      };
     }
-
-    return {
-      'Content-Type': 'application/json',
-    };
+    
+    return _cachedHeaders!;
+  }
+  
+  // Clear cached headers when logging out
+  void _clearCachedHeaders() {
+    _cachedHeaders = null;
   }
 
-  // Register user
+  // Register user - optimized
   Future<Map<String, dynamic>> register({
     required String username,
     required String email,
@@ -44,54 +58,33 @@ class ApiService {
         'username': username,
         'email': email,
         'password': password,
-        'fullName': fullName,
-        'phone': phone,
+        if (fullName != null) 'fullName': fullName,
+        if (phone != null) 'phone': phone,
       };
 
-      print('Sending registration request to: $baseUrl/auth/register');
-      print('Request body: ${jsonEncode(requestBody)}');
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/register'),
+        headers: await _getHeaders(),
+        body: jsonEncode(requestBody),
+      );
 
-      http.Response response;
-
-      // Use the appropriate HTTP client based on platform
-      if (kIsWeb) {
-        // Use the web-specific HTTP client on web platforms
-        response = await WebHttpClient.post(
-          '$baseUrl/auth/register',
-          headers: await _getHeaders(),
-          body: jsonEncode(requestBody),
-        );
-      } else {
-        // Use the standard HTTP client on non-web platforms
-        response = await http.post(
-          Uri.parse('$baseUrl/auth/register'),
-          headers: await _getHeaders(),
-          body: jsonEncode(requestBody),
-        );
+      if (response.statusCode >= 400) {
+        return {
+          'success': false,
+          'message': 'Server error: ${response.statusCode}',
+        };
       }
 
-      print('Registration response status code: ${response.statusCode}');
-      print('Registration response body: ${response.body}');
-
-      final responseData = jsonDecode(response.body);
-      return responseData;
+      return jsonDecode(response.body);
     } catch (e) {
-      print('Registration error: $e');
-      // Provide more detailed error info to help debugging
-      String errorDetails = e.toString();
-      if (e is http.ClientException) {
-        errorDetails =
-            'Network error: ${e.message}. This might be due to CORS or server connectivity issues.';
-      }
-
       return {
         'success': false,
-        'message': 'Connection error: $errorDetails',
+        'message': 'Connection error: ${e.toString()}',
       };
     }
   }
 
-  // Login user
+  // Login user - optimized
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -102,30 +95,11 @@ class ApiService {
         'password': password,
       };
 
-      print('Sending login request to: $baseUrl/auth/login');
-      print('Request body: ${jsonEncode(requestBody)}');
-
-      http.Response response;
-
-      // Use the appropriate HTTP client based on platform
-      if (kIsWeb) {
-        // Use the web-specific HTTP client on web platforms
-        response = await WebHttpClient.post(
-          '$baseUrl/auth/login',
-          headers: await _getHeaders(),
-          body: jsonEncode(requestBody),
-        );
-      } else {
-        // Use the standard HTTP client on non-web platforms
-        response = await http.post(
-          Uri.parse('$baseUrl/auth/login'),
-          headers: await _getHeaders(),
-          body: jsonEncode(requestBody),
-        );
-      }
-
-      print('Login response status code: ${response.statusCode}');
-      print('Login response body: ${response.body}');
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/login'),
+        headers: await _getHeaders(),
+        body: jsonEncode(requestBody),
+      );
 
       final responseData = jsonDecode(response.body);
 
@@ -135,25 +109,18 @@ class ApiService {
         // Access token and id from the nested data object
         final userData = responseData['data'];
         if (userData != null) {
-          print('User data: $userData'); // Debug print
           prefs.setString(_config.authTokenKey, userData['token']);
           prefs.setString(_config.userIdKey, userData['id']);
+          // Clear cached headers to force refresh with new token
+          _clearCachedHeaders();
         }
       }
 
       return responseData;
     } catch (e) {
-      print('Login error: $e');
-      // Provide more detailed error info to help debugging
-      String errorDetails = e.toString();
-      if (e is http.ClientException) {
-        errorDetails =
-            'Network error: ${e.message}. This might be due to CORS or server connectivity issues.';
-      }
-
       return {
         'success': false,
-        'message': 'Connection error: $errorDetails',
+        'message': 'Connection error: ${e.toString()}',
       };
     }
   }
@@ -196,15 +163,25 @@ class ApiService {
     }
   }
 
-  // Logout user
+  // Logout user - optimized
   Future<void> logout() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.remove(_config.authTokenKey);
-    prefs.remove(_config.userIdKey);
+    await prefs.remove(_config.authTokenKey);
+    await prefs.remove(_config.userIdKey);
+    _clearCachedHeaders();
+    _cachedGlasses = null;
   }
 
-  // Get all glasses
+  // Get all glasses - with caching
   Future<List<Glasses>> getAllGlasses() async {
+    // Return cached data if available and not expired
+    if (_cachedGlasses != null && _lastCacheTime != null) {
+      final now = DateTime.now();
+      if (now.difference(_lastCacheTime!) < _cacheExpiration) {
+        return _cachedGlasses!;
+      }
+    }
+    
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/glasses'),
@@ -213,22 +190,35 @@ class ApiService {
 
       if (response.statusCode == 200) {
         List<dynamic> data = json.decode(response.body);
-        return data.map((json) => Glasses.fromJson(json)).toList();
+        _cachedGlasses = data.map((json) => Glasses.fromJson(json)).toList();
+        _lastCacheTime = DateTime.now();
+        return _cachedGlasses!;
       } else {
-        print('Failed to load glasses: ${response.statusCode}');
         // Return local data as fallback if API fails
         return GlassesRepository.getAllGlasses();
       }
     } catch (e) {
-      print('Error fetching glasses: $e');
       // Return local data as fallback
       return GlassesRepository.getAllGlasses();
     }
   }
 
-  // Get glasses by face shape
+  // Get glasses by face shape - optimized
   Future<List<Glasses>> getGlassesByFaceShape(String faceShape) async {
     try {
+      // If we already have cached glasses, filter them instead of making a new request
+      if (_cachedGlasses != null && _lastCacheTime != null) {
+        final now = DateTime.now();
+        if (now.difference(_lastCacheTime!) < _cacheExpiration) {
+          return _cachedGlasses!
+              .where((glasses) =>
+                  glasses.faceShapeRecommendations
+                      ?.contains(faceShape.toLowerCase()) ??
+                  false)
+              .toList();
+        }
+      }
+      
       final response = await http.get(
         Uri.parse('$baseUrl/glasses/face-shape/$faceShape'),
         headers: await _getHeaders(),
@@ -238,7 +228,6 @@ class ApiService {
         List<dynamic> data = json.decode(response.body);
         return data.map((json) => Glasses.fromJson(json)).toList();
       } else {
-        print('Failed to load glasses by face shape: ${response.statusCode}');
         // Filter local data as fallback
         return GlassesRepository.getAllGlasses()
             .where((glasses) =>
@@ -248,7 +237,6 @@ class ApiService {
             .toList();
       }
     } catch (e) {
-      print('Error fetching glasses by face shape: $e');
       // Filter local data as fallback
       return GlassesRepository.getAllGlasses()
           .where((glasses) =>
@@ -259,20 +247,12 @@ class ApiService {
     }
   }
 
-  // Seed sample data
+  // Seed sample data - optimized to not block UI
   Future<bool> seedSampleData() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/seed'));
-
-      if (response.statusCode == 200) {
-        print('Sample data seeded successfully');
-        return true;
-      } else {
-        print('Failed to seed sample data: ${response.statusCode}');
-        return false;
-      }
+      return response.statusCode == 200;
     } catch (e) {
-      print('Error seeding sample data: $e');
       return false;
     }
   }
